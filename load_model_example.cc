@@ -46,7 +46,7 @@ static TF_Buffer* ReadBufferFromFile(const char* file) {
 int main(int argc, char** argv) {
   // Create a absl::Mutex here.
   absl::Mutex m;
-  absl::MutexLock lock(&m);
+
   // load graph
   TF_Status* status = TF_NewStatus();
   TF_Buffer* buffer = ReadBufferFromFile("load_model.pb");
@@ -55,56 +55,90 @@ int main(int argc, char** argv) {
   TF_GraphImportGraphDef(graph, buffer, opts, status);
   TF_DeleteImportGraphDefOptions(opts);
   TF_DeleteBuffer(buffer);
+
   // Open session
   TF_SessionOptions* options = TF_NewSessionOptions();
   TF_Session* session = TF_NewSession(graph, options, status);
   TF_DeleteSessionOptions(options);
+
+  // Get init and train operations.
+  TF_Operation* init = TF_GraphOperationByName(graph, "init");
+  TF_Operation* train = TF_GraphOperationByName(graph, "train");
+
+  // Run init.
+  std::cout << "Session starting: init" << std::endl;
+  TF_SessionRun(session, nullptr, nullptr, nullptr, 0,  // Inputs
+                nullptr, nullptr, 0,                    // Outputs
+                &init, 1,                               // Operations
+                nullptr, status);
+  std::cout << "Session ending: init" << std::endl;
+
   // Set tensors.
-  int size = 100;
-  int64_t dims[2] = {1, size};
-  // input a.
-  TF_Output input_a;
-  input_a.oper = TF_GraphOperationByName(graph, "input_a");
-  input_a.index = 0;
-  TF_Tensor* intput_a_tensor =
-      TF_AllocateTensor(TF_FLOAT, dims, 2, sizeof(float) * size);
-  for (int i = 0; i != size; ++i) {
-    *(static_cast<float*>(TF_TensorData(intput_a_tensor)) + i) = 2 * i;
+  int input_dim = 100;
+  int output_dim = 3;
+  int64_t input_dims[2] = {1, input_dim};
+  int64_t output_dims[2] = {1, output_dim};
+  // input.
+  TF_Output input;
+  input.oper = TF_GraphOperationByName(graph, "input");
+  input.index = 0;
+  TF_Tensor* input_tensor =
+      TF_AllocateTensor(TF_FLOAT, input_dims, 2, sizeof(float) * input_dim);
+  for (int i = 0; i != input_dim; ++i) {
+    *(static_cast<float*>(TF_TensorData(input_tensor)) + i) =
+        (float)i / input_dim;
   }
-  // input b.
-  TF_Output input_b;
-  input_b.oper = TF_GraphOperationByName(graph, "input_b");
-  input_b.index = 0;
-  TF_Tensor* intput_b_tensor =
-      TF_AllocateTensor(TF_FLOAT, dims, 2, sizeof(float) * size);
-  for (int i = 0; i != size; ++i) {
-    *(static_cast<float*>(TF_TensorData(intput_b_tensor)) + i) = -i;
+  // target.
+  TF_Output target;
+  target.oper = TF_GraphOperationByName(graph, "target");
+  target.index = 0;
+  TF_Tensor* target_tensor =
+      TF_AllocateTensor(TF_FLOAT, output_dims, 2, sizeof(float) * output_dim);
+  for (int i = 0; i != output_dim; ++i) {
+    *(static_cast<float*>(TF_TensorData(target_tensor)) + i) = i;
   }
-  // output. ouput = input_a + input_b.
+  // output.
   TF_Output output;
-  output.oper = TF_GraphOperationByName(graph, "result");
+  output.oper = TF_GraphOperationByName(graph, "output");
   output.index = 0;
   TF_Tensor* output_tensor;
 
-  std::vector<TF_Output> inputs = {input_a, input_b};
-  std::vector<TF_Tensor*> input_tensors = {intput_a_tensor, intput_b_tensor};
-
-  std::cout << "Session starting" << std::endl;
-  TF_SessionRun(session, nullptr, inputs.data(), input_tensors.data(),
-                static_cast<int>(input_tensors.size()),  // Inputs
-                &output, &output_tensor, 1,              // Outputs
-                nullptr, 0,                              // Operations
+  // Inference.
+  std::cout << "Session starting: output" << std::endl;
+  TF_SessionRun(session, nullptr, &input, &input_tensor, 1,  // Inputs
+                &output, &output_tensor, 1,                  // Outputs
+                nullptr, 0,                                  // Operations
                 nullptr, status);
-  std::cout << "Session finisehd" << std::endl;
-
-  for (int i = 0; i != size; ++i) {
+  std::cout << "Session ending: output" << std::endl;
+  std::cout << "before training, ouput = [";
+  for (int i = 0; i != output_dim; ++i) {
     std::cout << *(static_cast<float*>(TF_TensorData(output_tensor)) + i)
               << " ";
   }
-  std::cout << std::endl;
+  std::cout << "]" << std::endl;
 
-  TF_DeleteTensor(intput_a_tensor);
-  TF_DeleteTensor(intput_b_tensor);
+  // Training.
+  std::vector<TF_Output> inputs = {input, target};
+  std::vector<TF_Tensor*> input_tensors = {input_tensor, target_tensor};
+  std::cout << "Session starting: train" << std::endl;
+  for (int iter = 0; iter != 100; ++iter) {
+    TF_DeleteTensor(output_tensor);
+    TF_SessionRun(session, nullptr, inputs.data(), input_tensors.data(),
+                  static_cast<int>(input_tensors.size()),  // Inputs
+                  &output, &output_tensor, 1,              // Outputs
+                  &train, 1,                               // Operations
+                  nullptr, status);
+  }
+  std::cout << "Session ending: train" << std::endl;
+  std::cout << "after training, ouput = [";
+  for (int i = 0; i != output_dim; ++i) {
+    std::cout << *(static_cast<float*>(TF_TensorData(output_tensor)) + i)
+              << " ";
+  }
+  std::cout << "]" << std::endl;
+
+  TF_DeleteTensor(input_tensor);
+  TF_DeleteTensor(target_tensor);
   TF_DeleteTensor(output_tensor);
   TF_CloseSession(session, status);
   TF_DeleteSession(session, status);
