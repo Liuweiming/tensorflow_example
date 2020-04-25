@@ -1,0 +1,5 @@
+.vscode
+/abseil-cpp
+/tensorflow_c
+
+/build
