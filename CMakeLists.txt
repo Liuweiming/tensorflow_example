@@ -39,3 +39,7 @@ link_libraries (tensorflow_c_api)
 add_executable(example example.cc)
 target_include_directories(example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(example tensorflow)
+
+add_executable(load_model_example load_model_example.cc)
+target_include_directories(load_model_example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(load_model_example tensorflow)

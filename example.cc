@@ -3,6 +3,9 @@
 #include <iostream>
 #include "absl/synchronization/mutex.h"
 
+// adapted from
+// https://stackoverflow.com/questions/44378764/hello-tensorflow-using-the-c-api
+
 int main(int argc, char** argv) {
   // Create a absl::Mutex here.
   absl::Mutex m;
