@@ -6,8 +6,6 @@
 #include "absl/synchronization/mutex.h"
 
 // adapted from
-// https://stackoverflow.com/questions/44378764/hello-tensorflow-using-the-c-api
-// and
 // https://github.com/Neargye/hello_tf_c_api
 
 static void DeallocateBuffer(void* data, size_t) { std::free(data); }
@@ -44,12 +42,12 @@ static TF_Buffer* ReadBufferFromFile(const char* file) {
 }
 
 int main(int argc, char** argv) {
-  // Create a absl::Mutex here.
-  absl::Mutex m;
+  // Create absl::Mutex here.
+  // absl::Mutex m;
 
   // load graph
   TF_Status* status = TF_NewStatus();
-  TF_Buffer* buffer = ReadBufferFromFile("load_model.pb");
+  TF_Buffer* buffer = ReadBufferFromFile("training.pb");
   auto graph = TF_NewGraph();
   auto opts = TF_NewImportGraphDefOptions();
   TF_GraphImportGraphDef(graph, buffer, opts, status);

@@ -32,14 +32,10 @@ link_libraries (
   absl::time
 )
 
-add_subdirectory (tensorflow_c)
-include_directories (tensorflow_c)
-link_libraries (tensorflow_c_api)
+add_executable(loading_example loading_example.cc)
+target_include_directories(loading_example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(loading_example tensorflow)
 
-add_executable(example example.cc)
-target_include_directories(example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(example tensorflow)
-
-add_executable(load_model_example load_model_example.cc)
-target_include_directories(load_model_example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(load_model_example tensorflow)
+add_executable(training_example training_example.cc)
+target_include_directories(training_example PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(training_example tensorflow)
